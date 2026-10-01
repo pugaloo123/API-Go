@@ -174,13 +174,23 @@ func TestCreateItemFreePrice(t *testing.T) {
 func TestGetItemSuccess(t *testing.T) {
 	resetStorage()
 
-	item := createItem("Кресло", 3500)
-	request := httptest.NewRequest(http.MethodGet, "/items/"+item.ID, nil)
+	createItem("Кресло", 3500) // помеха: ручка должна найти второе, а не отдать первое попавшееся
+	second := createItem("Кресло 2", 4100)
+	request := httptest.NewRequest(http.MethodGet, "/items/"+second.ID, nil)
 	w := httptest.NewRecorder()
 	newRouter().ServeHTTP(w, request)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("неверный статус %d, должен быть %d. Тело: %s",
 			w.Code, http.StatusOK, w.Body.String())
+	}
+
+	var got Item
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("не удалось разобрать тело ответа: %v", err)
+	}
+
+	if got != second {
+		t.Errorf("не совпадают данные, получили: %+v, ожидали: %+v", got, second)
 	}
 }
