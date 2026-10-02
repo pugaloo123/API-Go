@@ -54,6 +54,10 @@ func TestCreateItemWrongMethod(t *testing.T) {
 		t.Errorf("объявление создано, хотя метод не поддерживается: %+v", items)
 	}
 
+	if got := w.Header().Get("Allow"); got != http.MethodPost {
+		t.Errorf("заголовок Allow: ожидали %q, получили %q", http.MethodPost, got)
+	}
+
 }
 
 func TestCreateItemBadBody(t *testing.T) {
@@ -160,7 +164,7 @@ func TestCreateItemFreePrice(t *testing.T) {
 	if item.ID == "" {
 		t.Errorf("Ожидалось, что у элемента будет ID, но его нет")
 	}
-	
+
 	stored, err := getItem(item.ID)
 	if err != nil {
 		t.Fatalf("объявление не попало в хранилище: %v", err)
@@ -169,7 +173,6 @@ func TestCreateItemFreePrice(t *testing.T) {
 		t.Errorf("в хранилище цена %d, ожидали 0", stored.Price)
 	}
 }
-
 
 func TestGetItemSuccess(t *testing.T) {
 	resetStorage()
@@ -193,4 +196,40 @@ func TestGetItemSuccess(t *testing.T) {
 	if got != second {
 		t.Errorf("не совпадают данные, получили: %+v, ожидали: %+v", got, second)
 	}
+}
+
+func TestGetItemNotFound(t *testing.T) {
+	resetStorage()
+	createItem("Кресло", 3500)
+	request := httptest.NewRequest(http.MethodGet, "/items/999", nil)
+	w := httptest.NewRecorder()
+	newRouter().ServeHTTP(w, request)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("неверный статус %d, должен быть %d. Тело: %s",
+			w.Code, http.StatusNotFound, w.Body.String())
+	}
+
+	if !strings.Contains(w.Body.String(), "не найдено") {
+		t.Errorf("неверное сообщение об ошибке: ожидали упоминание 'не найдено', получили %q", w.Body.String())
+	}
+
+}
+
+func TestGetItemWrongMethod(t *testing.T) {
+	resetStorage()
+	item := createItem("Кресло", 3500)
+	request := httptest.NewRequest(http.MethodDelete, "/items/"+item.ID, nil)
+	w := httptest.NewRecorder()
+	newRouter().ServeHTTP(w, request)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("неверный статус %d, должен быть %d. Тело: %s",
+			w.Code, http.StatusMethodNotAllowed, w.Body.String())
+	}
+
+	if !strings.Contains(w.Header().Get("Allow"), "GET") {
+		t.Errorf("в заголовке ожидали получить разрешенный метод: GET, получили: %q", w.Header().Get("Allow"))
+	}
+
 }

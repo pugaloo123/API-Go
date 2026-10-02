@@ -28,6 +28,7 @@ func newRouter() *http.ServeMux {
 
 func handleCreateItem(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
 		http.Error(w, "метод не поддерживается", http.StatusMethodNotAllowed)
 		return
 	}
